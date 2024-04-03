@@ -7,6 +7,7 @@ from tokenizer import Tokenizer
 import contextlib
 import os
 from model import GemmaForCausalLM
+from heatmaps import generate
 import json
 
 
@@ -17,7 +18,22 @@ def _set_default_tensor_type(dtype: torch.dtype):
     yield
     torch.set_default_dtype(torch.float)
 
-
+def format_attention(attention, layers=None, heads=None):
+    if layers:
+        attention = [attention[layer_index] for layer_index in layers]
+    squeezed = []
+    for layer_attention in attention:
+        # 1 x num_heads x seq_len x seq_len
+        if len(layer_attention.shape) != 4:
+            raise ValueError("The attention tensor does not have the correct number of dimensions. Make sure you set "
+                             "output_attentions=True when initializing your model.")
+        layer_attention = layer_attention.squeeze(0)
+        if heads:
+            layer_attention = layer_attention[heads]
+        squeezed.append(layer_attention)
+    # num_layers x num_heads x seq_len x seq_len
+    return torch.stack(squeezed)
+    
 def main():
     VARIANT = "7b-it"
     weights_dir = "gemma-ckpt"
@@ -68,7 +84,49 @@ def main():
         output_len=100,
     )
     print(result)
+    input_len = len(model.tokenizer.encode(prompt))
+    total_len = len(model.tokenizer.encode(prompt)) + len(model.tokenizer.encode(result))
+    total_tokens = model.tokenizer.encode(prompt) + model.tokenizer.encode(result)
+    total_tokens = [model.tokenizer.decode(v) for v in total_tokens]
+    if not os.path.exists("outputs"):
+        os.mkdir("outputs")
+    with open("/outputs/output_tokens.txt", 'w') as f:
+    	for tok in total_tokens:
+    		print(tok, file=f)
+            
+    
+    with open("/outputs/attention_weights.json","w") as f:
+        json.dump(attention_weights, f, sort_keys=True, indent=4)
+    for key, val in attention_weights.items():
+        # Convert each element of val to torch.tensor with dtype=torch.float16
+        val = [torch.tensor(v, dtype=torch.float16) for v in val]
+        # Concatenate tensors along dimension 2
+        val = torch.cat(val, dim=2)
+        attention_weights[key] = val[:, :, :len(total_tokens), :len(total_tokens)]
 
+    for key, val in attention_weights.items():
+        attention_weights[key] = val[:, :, :len(total_tokens), :len(total_tokens)]
+
+    include_layers = [-1]
+    attention = format_attention(list(attention_weights.values()), include_layers)
+    tokens = total_tokens
+                     
+    sentence_b_start = input_len+1
+    slice_a = slice(0, sentence_b_start)
+    slice_b = slice(sentence_b_start, len(tokens))
+    attn = attention[:, :, slice_b, slice_a]
+    left = tokens[slice_b]
+    right = tokens[slice_a]
+    for i in range(8):
+        No_attn= attn[:,i,0,:] # (batch, heads, in_seq, out_seq)
+        flat_attn = No_attn.flatten()
+        generate(
+            text_list = right,
+            attention_list = flat_attn.tolist(), 
+            latex_file = f"/outputs/GemmaDecoderLayer-18-Head-{i+1}.tex", 
+            rescale_value = True
+        )
+        
 
 if __name__ == "__main__":
     # parser = argparse.ArgumentParser()
