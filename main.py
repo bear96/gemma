@@ -90,12 +90,12 @@ def main():
     total_tokens = [model.tokenizer.decode(v) for v in total_tokens]
     if not os.path.exists("outputs"):
         os.mkdir("outputs")
-    with open("/outputs/output_tokens.txt", 'w') as f:
+    with open("outputs/output_tokens.txt", 'w') as f:
     	for tok in total_tokens:
     		print(tok, file=f)
             
     
-    with open("/outputs/attention_weights.json","w") as f:
+    with open("outputs/attention_weights.json","w") as f:
         json.dump(attention_weights, f, sort_keys=True, indent=4)
     for key, val in attention_weights.items():
         # Convert each element of val to torch.tensor with dtype=torch.float16
@@ -123,7 +123,7 @@ def main():
         generate(
             text_list = right,
             attention_list = flat_attn.tolist(), 
-            latex_file = f"/outputs/GemmaDecoderLayer-18-Head-{i+1}.tex", 
+            latex_file = f"outputs/GemmaDecoderLayer-18-Head-{i+1}.tex", 
             rescale_value = True
         )
         

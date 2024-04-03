@@ -8,6 +8,7 @@ __pycache__/
 
 # Folders
 gemma-ckpt/
+outputs/
 
 # Distribution / packaging
 .Python
