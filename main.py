@@ -40,8 +40,8 @@ def main():
     model_config = get_config_for_2b() if "2b" in VARIANT else get_config_for_7b()
     if not os.path.exists(weights_dir):
         from transformers import AutoTokenizer, AutoModelForCausalLM
-        tokenizer = AutoTokenizer.from_pretrained("google/gemma-7b-it-pytorch", token = "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")
-        model = AutoModelForCausalLM.from_pretrained("google/gemma-7b-it-pytorch", token = "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")
+        tokenizer = AutoTokenizer.from_pretrained("google/gemma-7b-it-pytorch", token = "")
+        model = AutoModelForCausalLM.from_pretrained("google/gemma-7b-it-pytorch", token = "")
         ckpt_path = model.state_dict()
     else:    
         model_config = get_config_for_2b() if "2b" in VARIANT else get_config_for_7b()
